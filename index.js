@@ -27,8 +27,10 @@ app.use(function (req, res, next) {
 });
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.json());
-app.use(rateLimiter({ windowMs: 15 * 60 * 1000, max: 100, headers: true }));
-
+//app.use(rateLimiter({ windowMs: 15 * 60 * 1000, max: 100, headers: true }));
+app.all('/player/register', function(req, res) {
+    res.send("Coming soon...");
+});
 app.all('/player/login/dashboard', function (req, res) {
     const tData = {};
     try {
@@ -37,25 +39,21 @@ app.all('/player/login/dashboard', function (req, res) {
         if (uName[1] && uPass[1]) { res.redirect('/player/growid/login/validate'); }
     } catch (why) { console.log(`Warning: ${why}`); }
 
-    res.render(__dirname + '/public/html/dashboard.ejs', { data: tData });
+    res.render(__dirname + '/public/html/dashboard.ejs', {data: tData});
 });
 
 app.all('/player/growid/login/validate', (req, res) => {
-    const _token = req.body._token;
     const growId = req.body.growId;
-    const password = req.body.password;
-
-    const token = Buffer.from(
-        `_token=${_token}&growId=${growId}&password=${password}`,
-    ).toString('base64');
-
+    const pass = req.body.password;
+    const _token = req.body._token;
+    const token = `_token=${_token}&growId=${growId}&password=${pass}`;
     res.send(
-        `{"status":"success","message":"Account Validated.","token":"${token}","url":"","accountType":"growtopia"}`,
+        `{"status":"success","message":"Account Validated.","token":"${token}","url":"","accountType":"growtopia", "accountAge": 2}`,
     );
 });
 
 app.get('/', function (req, res) {
-    res.send('Hello World!');
+   res.send('Hello Memek');
 });
 
 app.listen(5000, function () {
