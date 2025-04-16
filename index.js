@@ -1,228 +1,180 @@
-<!DOCTYPE html>
-<html lang="en" style="background-color: transparent; width: 100%; height: 100%">
-<head>
-    <meta charset="utf-8" />
-    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Growtopia Player Support</title>
-    <link rel="icon" type="image/png" href="https://s3.eu-west-1.amazonaws.com/cdn.growtopiagame.com/website/resources/assets/images/growtopia.ico" sizes="16x16" />
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" />
-    <link media="all" rel="stylesheet" href="https://s3.eu-west-1.amazonaws.com/cdn.growtopiagame.com/website/resources/assets/css/faq-main.css" />
-    <link media="all" rel="stylesheet" href="https://s3.eu-west-1.amazonaws.com/cdn.growtopiagame.com/website/resources/assets/css/shop-custom.css" />
-    <link media="all" rel="stylesheet" href="https://s3.eu-west-1.amazonaws.com/cdn.growtopiagame.com/website/resources/assets/css/ingame-custom.css" />
-    <style>
-        .modal-backdrop {
-            background-color: rgba(0, 0, 0, 0.1);
-        }
-        .modal-backdrop + div {
-            overflow: auto;
-        }
-        .modal-body, .content {
-            padding: 0;
-        }
-        .password-input-group {
-            position: relative;
-        }
-        .password-toggle {
-            position: absolute;
-            right: 10px;
-            top: 50%;
-            transform: translateY(-50%);
-            cursor: pointer;
-            background: none;
-            border: none;
-            color: #666;
-        }
-        .error-message {
-            color: #dc3545;
-            margin-top: 5px;
-            font-size: 0.9em;
-            display: none;
-        }
-        .hidden {
-            display: none;
-        }
-    </style>
-</head>
-<body style="background-color: transparent">
-    <button type="button" class="btn btn-primary hidden" data-toggle="modal" id="modalButton" data-target="#modalShow" data-backdrop="static" data-keyboard="false"></button>
-    
-    <div class="content">
-        <section class="common-box">
-            <div class="container">
-                <div class="row">
-                    <div class="col-md-12 col-sm-12">
-                        <div class="modal fade product-list-popup" id="modalShow" tabindex="-1" role="dialog" aria-hidden="false">
-                            <div class="modal-dialog modal-dialog-centered" role="document">
-                                <div class="modal-content">
-                                    <div class="modal-body">
-                                        <div class="content">
-                                            <section class="common-box">
-                                                <div class="container">
-                                                    <div class="section-title center-align">
-                                                        <h2>Log Into Your GTPSID</h2>
-                                                    </div>
-                                                    <div class="row div-content-center">
-                                                        <div class="col-md-12 col-sm-12">
-                                                            <form id="loginForm" method="POST" action="/player/growid/login/validate" accept-charset="UTF-8" class="needs-validation" novalidate>
-                                                                <input name="_token" type="hidden" value="<%= csrfToken %>" />
-                                                                
-                                                                <div class="form-group">
-                                                                    <input id="loginGrowId" class="form-control grow-text" placeholder="Your GrowID Name *" name="growId" type="text" required minlength="4" />
-                                                                    <div class="error-message" id="nameError">GrowID must be at least 4 characters</div>
-                                                                </div>
-                                                                
-                                                                <div class="form-group password-input-group">
-                                                                    <input id="loginPassword" class="form-control grow-text" placeholder="Your GrowID Password *" name="password" type="password" required minlength="4" />
-                                                                    <button type="button" class="password-toggle" id="toggleLogPassword">
-                                                                        <i class="fas fa-eye"></i>
-                                                                    </button>
-                                                                    <div class="error-message" id="passwordError">Password must be at least 4 characters</div>
-                                                                </div>
-                                                                
-                                                                <div class="form-group text-center">
-                                                                    <button type="submit" class="btn btn-lg btn-primary grow-button" id="loginButton">Login</button>
-                                                                </div>
-                                                            </form>
-                                                            
-                                                            <div class="text-center mt-3">
-                                                                <a href="/player/register" class="btn btn-link">Don't have any gtpsid? Register here!</a>
-                                                            </div>
-                                                            
-                                                            <div id="errorDiv" class="alert alert-danger hidden mt-3">
-                                                                <span id="errorMessage"></span>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </section>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </section>
-    </div>
+require('dotenv').config();
+const express = require('express');
+const app = express();
+const bodyParser = require('body-parser');
+const rateLimit = require('express-rate-limit');
+const compression = require('compression');
+const helmet = require('helmet');
+const csrf = require('csurf');
+const cookieParser = require('cookie-parser');
+const path = require('path');
+const morgan = require('morgan');
 
-    <script src="https://s3.eu-west-1.amazonaws.com/cdn.growtopiagame.com/website/resources/vendors/jquery/jquery-2.1.4.min.js"></script>
-    <script src="https://s3.eu-west-1.amazonaws.com/cdn.growtopiagame.com/website/resources/vendors/bootstrap/javascripts/bootstrap.min.js"></script>
-    
-    <script>
-        // Prevent multiple clicks
-        let clicked = false;
-        $('a').click(function() {
-            if (clicked === false) {
-                clicked = true;
-                return true;
-            }
-            return false;
+// Basic configuration
+const PORT = process.env.PORT || 5000;
+const ENVIRONMENT = process.env.NODE_ENV || 'development';
+
+// Security middleware setup
+app.use(helmet());
+app.use(cookieParser());
+
+// Request parsing
+app.use(bodyParser.urlencoded({ extended: false, limit: '10kb' }));
+app.use(bodyParser.json({ limit: '10kb' }));
+
+// Compression
+app.use(compression({
+    level: 6,
+    threshold: 0,
+    filter: (req, res) => {
+        if (req.headers['x-no-compression']) return false;
+        return compression.filter(req, res);
+    }
+}));
+
+// Rate limiting
+const apiLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 100, // limit each IP to 100 requests per windowMs
+    handler: (req, res) => {
+        res.status(429).json({
+            status: 'error',
+            message: 'Too many requests, please try again later'
         });
+    }
+});
 
-        // DevTools prevention
-        document.onkeydown = function(e) {
-            if (e.key == 'F12' || e.keyCode == 123 || 
-                (e.ctrlKey && e.shiftKey && (e.key == 'I' || e.key == 'C' || e.key == 'J')) {
-                e.preventDefault();
-                return false;
-            }
+// CSRF protection
+const csrfProtection = csrf({ 
+    cookie: {
+        httpOnly: true,
+        secure: ENVIRONMENT === 'production',
+        sameSite: 'strict'
+    }
+});
+
+// View engine setup
+app.set('view engine', 'ejs');
+app.set('views', path.join(__dirname, 'views'));
+app.set('trust proxy', 1);
+
+// Static files
+app.use(express.static(path.join(__dirname, 'public'), {
+    maxAge: ENVIRONMENT === 'production' ? '7d' : '0'
+}));
+
+// Logging
+app.use(morgan(ENVIRONMENT === 'development' ? 'dev' : 'combined'));
+
+// Routes
+app.get('/', csrfProtection, (req, res) => {
+    res.render('login', {
+        csrfToken: req.csrfToken(),
+        pageTitle: 'Growtopia Player Support - Login'
+    });
+});
+
+app.post('/player/growid/login/validate', apiLimiter, (req, res) => {
+    try {
+        const { growId, password, _token } = req.body;
+        
+        // Validate inputs
+        if (!growId || !password || !_token) {
+            return res.status(400).json({
+                status: 'error',
+                message: 'All fields are required'
+            });
+        }
+
+        if (growId.length < 4 || password.length < 4) {
+            return res.status(400).json({
+                status: 'error',
+                message: 'GrowID and Password must be at least 4 characters'
+            });
+        }
+
+        // In a real application, you would:
+        // 1. Validate the CSRF token
+        // 2. Authenticate against database
+        // 3. Create a proper session token
+        
+        const responseData = {
+            status: 'success',
+            message: 'Account validated successfully',
+            token: `_token=${_token}&growId=${encodeURIComponent(growId)}&password=${encodeURIComponent(password)}`,
+            url: '',
+            accountType: 'growtopia',
+            accountAge: 2
         };
 
-        // Form validation and submission
-        $(document).ready(function() {
-            // Show modal on load
-            $('#modalButton').trigger('click');
-            
-            // Close modal handler
-            $('.close').on('click', function() {
-                window.location = '/player/validate/close';
-            });
-            
-            // Password toggle
-            $('#toggleLogPassword').click(function() {
-                const passwordField = $('#loginPassword');
-                const icon = $(this).find('i');
-                
-                if (passwordField.attr('type') === 'password') {
-                    passwordField.attr('type', 'text');
-                    icon.removeClass('fa-eye').addClass('fa-eye-slash');
-                } else {
-                    passwordField.attr('type', 'password');
-                    icon.removeClass('fa-eye-slash').addClass('fa-eye');
-                }
-            });
-            
-            // Form validation
-            $('#loginForm').submit(function(e) {
-                e.preventDefault();
-                
-                const growId = $('#loginGrowId').val().trim();
-                const password = $('#loginPassword').val().trim();
-                let isValid = true;
-                
-                // Reset errors
-                $('.error-message').hide();
-                $('#errorDiv').addClass('hidden');
-                
-                // Validate GrowID
-                if (growId.length < 4) {
-                    $('#nameError').show();
-                    isValid = false;
-                }
-                
-                // Validate Password
-                if (password.length < 4) {
-                    $('#passwordError').show();
-                    isValid = false;
-                }
-                
-                if (isValid) {
-                    // Store GrowID in localStorage if needed
-                    if (localStorage) {
-                        localStorage.setItem('growId', growId);
-                    }
-                    
-                    // Submit the form
-                    this.submit();
-                } else {
-                    $('#errorMessage').text('Please fill all fields correctly');
-                    $('#errorDiv').removeClass('hidden');
-                }
-            });
-            
-            // Load saved GrowID if available
-            if (localStorage && localStorage.getItem('growId')) {
-                $('#loginGrowId').val(localStorage.getItem('growId'));
-            }
-            
-            // Responsive scaling for mobile
-            var observer = new MutationObserver(function(mutations) {
-                mutations.forEach(function(mutation) {
-                    for (var i = 0; i < mutation.addedNodes.length; i++) {
-                        if (mutation.addedNodes[i].tagName == 'DIV') {
-                            var thediv = mutation.addedNodes[i];
-                            var sw = window.screen.width;
-                            if (sw < 667) {
-                                $(thediv).css({
-                                    transform: 'scale(0.75)',
-                                    'transform-origin': '0 0',
-                                    '-webkit-transform': 'scale(0.75)',
-                                    '-webkit-transform-origin': '0 0',
-                                    overflow: 'auto',
-                                });
-                            }
-                        }
-                    }
-                });
-            });
-            observer.observe(document.body, {
-                attributes: false,
-                childList: true,
-                characterData: false
-            });
+        res.json(responseData);
+    } catch (error) {
+        console.error('Login validation error:', error);
+        res.status(500).json({
+            status: 'error',
+            message: 'Internal server error'
         });
-    </script>
-</body>
-</html>
+    }
+});
+
+app.get('/player/register', csrfProtection, (req, res) => {
+    res.render('register', {
+        csrfToken: req.csrfToken(),
+        pageTitle: 'Growtopia Player Support - Register'
+    });
+});
+
+app.get('/player/validate/close', (req, res) => {
+    res.send('Window closed successfully');
+});
+
+// Error handling middleware
+app.use((err, req, res, next) => {
+    console.error(err.stack);
+    
+    if (err.code === 'EBADCSRFTOKEN') {
+        return res.status(403).json({
+            status: 'error',
+            message: 'Invalid CSRF token'
+        });
+    }
+
+    res.status(500).json({
+        status: 'error',
+        message: 'Something went wrong!'
+    });
+});
+
+// 404 handler
+app.use((req, res) => {
+    res.status(404).json({
+        status: 'error',
+        message: 'Endpoint not found'
+    });
+});
+
+// Server startup
+app.listen(PORT, () => {
+    console.log(`Server running in ${ENVIRONMENT} mode on port ${PORT}`);
+    
+    if (ENVIRONMENT === 'development') {
+        console.log(`Access the app at: http://localhost:${PORT}`);
+    }
+});
+
+// Enable HTTPS in production (uncomment when you have SSL certificates)
+/*
+if (ENVIRONMENT === 'production') {
+    const https = require('https');
+    const fs = require('fs');
+    
+    const options = {
+        key: fs.readFileSync('/path/to/privkey.pem'),
+        cert: fs.readFileSync('/path/to/fullchain.pem')
+    };
+
+    https.createServer(options, app).listen(443, () => {
+        console.log('HTTPS server running on port 443');
+    });
+}
+*/
