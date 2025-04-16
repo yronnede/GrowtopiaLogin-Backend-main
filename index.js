@@ -1,4 +1,3 @@
-require('dotenv').config();
 const express = require('express');
 const app = express();
 const bodyParser = require('body-parser');
@@ -11,8 +10,8 @@ const path = require('path');
 const morgan = require('morgan');
 
 // Basic configuration
-const PORT = process.env.PORT || 5000;
-const ENVIRONMENT = process.env.NODE_ENV || 'development';
+const PORT = 5000;
+const ENVIRONMENT = 'development';
 
 // Security middleware setup
 app.use(helmet());
